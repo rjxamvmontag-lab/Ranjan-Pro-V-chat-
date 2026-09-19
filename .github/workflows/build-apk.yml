@@ -23,21 +23,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Set up Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'gradle'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
       - name: Install NPM Dependencies
         run: |
-          npm install
+          npm install --no-audit --no-fund
 
       - name: Build Web Application
         run: |
@@ -58,15 +60,18 @@ jobs:
 
       - name: Verify APK Generation
         run: |
+          echo "Checking generated APK files:"
           ls -la android/app/build/outputs/apk/debug/
           if [ ! -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "Error: app-debug.apk not found!"
+            echo "Error: app-debug.apk was not generated in android/app/build/outputs/apk/debug/!"
             exit 1
           fi
+          echo "APK successfully verified: android/app/build/outputs/apk/debug/app-debug.apk"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: FreeMusicPlayer-Debug-APK
           path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
           retention-days: 30
