@@ -47,25 +47,57 @@ jobs:
         run: |
           npm run build
 
-      - name: Sync Capacitor Android
+      - name: Initialize and Sync Capacitor Android Platform
         run: |
+          if [ ! -d "android" ]; then
+            echo "Android platform directory not found. Adding Android platform via Capacitor..."
+            npx cap add android
+          elif [ ! -f "android/gradlew" ]; then
+            echo "Android directory found but gradlew is missing. Re-adding Android platform..."
+            rm -rf android
+            npx cap add android
+          else
+            echo "Existing Android platform and gradlew verified."
+          fi
+
+          echo "Syncing Capacitor Android web assets..."
           npx cap sync android
+
+          # Ensure automatic SDK download and Java 21 compatibility flags
+          if ! grep -q "android.builder.sdkDownload=true" android/gradle.properties 2>/dev/null; then
+            echo "android.builder.sdkDownload=true" >> android/gradle.properties
+          fi
+
+          if ! grep -q "VERSION_21" android/app/build.gradle 2>/dev/null; then
+            sed -i '/buildTypes {/i \    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_21\n        targetCompatibility JavaVersion.VERSION_21\n    }' android/app/build.gradle || true
+          fi
 
       - name: Grant Execute Permission to Gradlew
         run: |
-          chmod +x ./android/gradlew
+          if [ -f "./android/gradlew" ]; then
+            chmod +x ./android/gradlew
+            echo "Execute permission successfully granted to ./android/gradlew"
+            ls -la ./android/gradlew
+          else
+            echo "FATAL ERROR: ./android/gradlew does not exist!"
+            ls -la android || true
+            exit 1
+          fi
 
       - name: Build Android Debug APK with Gradle
         working-directory: ./android
         run: |
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug -Pandroid.builder.sdkDownload=true --stacktrace --no-daemon
 
       - name: Verify APK Generation
         run: |
           echo "Checking generated APK files:"
-          ls -la android/app/build/outputs/apk/debug/
+          mkdir -p android/app/build/outputs/apk/debug
+          ls -la android/app/build/outputs/apk/debug/ || true
           if [ ! -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
             echo "Error: app-debug.apk was not generated in android/app/build/outputs/apk/debug/!"
+            echo "Searching for any generated APK in build directory:"
+            find android/app/build -name "*.apk" || true
             exit 1
           fi
           echo "APK successfully verified: android/app/build/outputs/apk/debug/app-debug.apk"
