@@ -1,0 +1,6 @@
+{
+  "name": "Free Music Player",
+  "description": "100% free online song player with instant search, top trending tracks, and complete playback controls with zero VIP or account restrictions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
