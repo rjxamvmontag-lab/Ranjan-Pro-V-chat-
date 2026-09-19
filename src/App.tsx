@@ -307,35 +307,44 @@ export default function App() {
 
   // Media Session API for lock screen and bluetooth media controls
   useEffect(() => {
-    if ('mediaSession' in navigator && currentSong) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentSong.title,
-        artist: currentSong.artist,
-        album: currentSong.album,
-        artwork: [
-          { src: currentSong.artwork, sizes: '96x96', type: 'image/jpeg' },
-          { src: currentSong.artwork, sizes: '256x256', type: 'image/jpeg' },
-          { src: currentSong.artwork, sizes: '512x512', type: 'image/jpeg' },
-        ],
-      });
+    if (
+      typeof window !== 'undefined' &&
+      'mediaSession' in navigator &&
+      typeof MediaMetadata !== 'undefined' &&
+      currentSong
+    ) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentSong.title,
+          artist: currentSong.artist,
+          album: currentSong.album,
+          artwork: [
+            { src: currentSong.artwork, sizes: '96x96', type: 'image/jpeg' },
+            { src: currentSong.artwork, sizes: '256x256', type: 'image/jpeg' },
+            { src: currentSong.artwork, sizes: '512x512', type: 'image/jpeg' },
+          ],
+        });
 
-      navigator.mediaSession.setActionHandler('play', () => {
-        handleTogglePlay();
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        handleTogglePlay();
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', () => {
-        handlePrevious();
-      });
-      navigator.mediaSession.setActionHandler('nexttrack', () => {
-        handleNext();
-      });
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime !== undefined && details.seekTime !== null) {
-          handleSeek(details.seekTime);
-        }
-      });
+        navigator.mediaSession.setActionHandler('play', () => {
+          handleTogglePlay();
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+          handleTogglePlay();
+        });
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+          handlePrevious();
+        });
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          handleNext();
+        });
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details.seekTime !== undefined && details.seekTime !== null) {
+            handleSeek(details.seekTime);
+          }
+        });
+      } catch (err) {
+        console.debug('MediaSession registration notice:', err);
+      }
     }
   }, [currentSong, handleTogglePlay, handlePrevious, handleNext]);
 
@@ -389,6 +398,7 @@ export default function App() {
       {/* Hidden Native Audio Element */}
       <audio
         ref={audioRef}
+        playsInline
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}

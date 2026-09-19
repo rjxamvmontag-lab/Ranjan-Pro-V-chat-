@@ -94,6 +94,7 @@ export function SongRow({
               onError={() => setImageError(true)}
               className="w-full h-full object-cover"
               loading="lazy"
+              referrerPolicy="no-referrer"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-neutral-800 text-neutral-500">

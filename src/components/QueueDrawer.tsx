@@ -68,6 +68,7 @@ export function QueueDrawer({
                 src={currentSong.artwork}
                 alt={currentSong.title}
                 className="w-11 h-11 rounded-lg object-cover bg-neutral-950 shrink-0"
+                referrerPolicy="no-referrer"
               />
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-sm text-neutral-100 truncate">
@@ -106,6 +107,7 @@ export function QueueDrawer({
                     src={song.artwork}
                     alt={song.title}
                     className="w-10 h-10 rounded-lg object-cover bg-neutral-800 shrink-0"
+                    referrerPolicy="no-referrer"
                   />
                   <div className="min-w-0 flex-1 pr-2">
                     <p className="text-sm font-medium text-neutral-200 truncate group-hover:text-emerald-300">

@@ -137,6 +137,7 @@ export function ExpandedPlayerModal({
               className={`w-full h-full object-cover transition-transform duration-700 ${
                 isPlaying ? 'scale-105' : 'scale-100'
               }`}
+              referrerPolicy="no-referrer"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-neutral-600">

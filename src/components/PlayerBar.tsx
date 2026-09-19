@@ -122,6 +122,7 @@ export function PlayerBar({
                   src={currentSong.artwork}
                   alt={currentSong.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-neutral-600">
