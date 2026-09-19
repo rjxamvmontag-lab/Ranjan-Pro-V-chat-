@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { AlertCircle, RotateCcw, SkipForward } from 'lucide-react';
 import { CURATED_SONGS } from './data/curatedSongs';
 import { Song, RepeatMode } from './types';
 import { searchSongsOnline } from './services/musicService';
@@ -23,6 +24,7 @@ export default function App() {
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('all');
   const [isShuffle, setIsShuffle] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [streamError, setStreamError] = useState<string | null>(null);
 
   // Queue and Liked Songs
   const [queue, setQueue] = useState<Song[]>([]);
@@ -46,6 +48,14 @@ export default function App() {
   const [isExpandedPlayer, setIsExpandedPlayer] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
 
+  // Initialize initial song in audio element
+  useEffect(() => {
+    if (audioRef.current && currentSong && !audioRef.current.src) {
+      audioRef.current.src = currentSong.audioUrl;
+      audioRef.current.load();
+    }
+  }, [currentSong]);
+
   // Save liked songs to localStorage
   useEffect(() => {
     try {
@@ -65,6 +75,7 @@ export default function App() {
 
   // Play a song
   const handlePlaySong = useCallback((song: Song) => {
+    setStreamError(null);
     setCurrentSong(song);
     setIsPlaying(true);
     if (audioRef.current) {
@@ -79,12 +90,13 @@ export default function App() {
   // Toggle play/pause
   const handleTogglePlay = useCallback(() => {
     if (!audioRef.current || !currentSong) return;
+    setStreamError(null);
 
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      if (!audioRef.current.src || audioRef.current.src !== currentSong.audioUrl) {
+      if (!audioRef.current.src || !audioRef.current.src.includes(currentSong.audioUrl)) {
         audioRef.current.src = currentSong.audioUrl;
         audioRef.current.load();
       }
@@ -293,6 +305,40 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleTogglePlay, duration]);
 
+  // Media Session API for lock screen and bluetooth media controls
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentSong) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentSong.title,
+        artist: currentSong.artist,
+        album: currentSong.album,
+        artwork: [
+          { src: currentSong.artwork, sizes: '96x96', type: 'image/jpeg' },
+          { src: currentSong.artwork, sizes: '256x256', type: 'image/jpeg' },
+          { src: currentSong.artwork, sizes: '512x512', type: 'image/jpeg' },
+        ],
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        handleTogglePlay();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        handleTogglePlay();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        handlePrevious();
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        handleNext();
+      });
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined && details.seekTime !== null) {
+          handleSeek(details.seekTime);
+        }
+      });
+    }
+  }, [currentSong, handleTogglePlay, handlePrevious, handleNext]);
+
   // Determine what songs to display
   const isSearchActive = searchTerm.trim().length > 0;
   const displaySongs = useMemo(() => {
@@ -349,12 +395,51 @@ export default function App() {
         onError={() => {
           console.warn('Audio stream error for current song');
           setIsPlaying(false);
+          setStreamError(
+            `"${currentSong?.title || 'Song'}" preview stream unavailable. Skip to next song or retry.`
+          );
         }}
         preload="auto"
       />
 
       {/* Top Navbar */}
       <Header />
+
+      {/* Audio Stream Error Alert */}
+      {streamError && (
+        <div className="max-w-4xl mx-auto px-4 mt-3">
+          <div className="flex items-center justify-between gap-3 bg-rose-500/10 border border-rose-500/30 text-rose-300 px-4 py-3 rounded-xl text-sm animate-in fade-in duration-200">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{streamError}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setStreamError(null);
+                  if (currentSong) handlePlaySong(currentSong);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs bg-rose-500/20 hover:bg-rose-500/30 rounded-lg text-rose-200 font-medium transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStreamError(null);
+                  handleNext();
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs bg-neutral-800 hover:bg-neutral-700 rounded-lg text-neutral-200 font-medium transition-colors"
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-32 sm:pb-36">
