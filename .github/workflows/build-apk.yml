@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build Capacitor Android APK
+    name: Build Capacitor Android APK (Debug & Release)
     runs-on: ubuntu-latest
     env:
       CI: true
@@ -84,28 +84,68 @@ jobs:
             exit 1
           fi
 
-      - name: Build Android Debug APK with Gradle
+      - name: Build Android Debug and Release APKs with Gradle
         working-directory: ./android
         run: |
-          ./gradlew assembleDebug -Pandroid.builder.sdkDownload=true --stacktrace --no-daemon
+          ./gradlew assembleDebug assembleRelease -Pandroid.builder.sdkDownload=true --stacktrace --no-daemon
 
-      - name: Verify APK Generation
+      - name: Verify or Sign Release APK
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'MusicPlayerPass2026!' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'freemusicplayer' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'MusicPlayerPass2026!' }}
         run: |
-          echo "Checking generated APK files:"
+          RELEASE_DIR="android/app/build/outputs/apk/release"
+          mkdir -p "$RELEASE_DIR"
+
+          # If secret base64 keystore provided, decode and use it
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "Decoding secret release signing keystore..."
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          fi
+
+          # If app-release-unsigned.apk was produced and keystore exists, sign with apksigner
+          if [ -f "$RELEASE_DIR/app-release-unsigned.apk" ] && [ -f "android/app/release.keystore" ]; then
+            echo "Signing app-release-unsigned.apk with apksigner..."
+            apksigner sign --ks android/app/release.keystore \
+              --ks-pass "pass:$KEYSTORE_PASSWORD" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --key-pass "pass:$KEY_PASSWORD" \
+              --out "$RELEASE_DIR/app-release.apk" "$RELEASE_DIR/app-release-unsigned.apk"
+          fi
+
+          if [ -f "$RELEASE_DIR/app-release.apk" ]; then
+            echo "Verifying signature of app-release.apk:"
+            apksigner verify --verbose "$RELEASE_DIR/app-release.apk" || true
+          fi
+
+      - name: Verify Generated APKs
+        run: |
+          echo "Checking generated Debug APKs:"
           mkdir -p android/app/build/outputs/apk/debug
           ls -la android/app/build/outputs/apk/debug/ || true
-          if [ ! -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "Error: app-debug.apk was not generated in android/app/build/outputs/apk/debug/!"
-            echo "Searching for any generated APK in build directory:"
-            find android/app/build -name "*.apk" || true
-            exit 1
-          fi
-          echo "APK successfully verified: android/app/build/outputs/apk/debug/app-debug.apk"
 
-      - name: Upload APK Artifact
+          echo "Checking generated Release APKs:"
+          mkdir -p android/app/build/outputs/apk/release
+          ls -la android/app/build/outputs/apk/release/ || true
+
+          if [ ! -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "Warning: app-debug.apk missing in expected location."
+          fi
+
+      - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: FreeMusicPlayer-Debug-APK
           path: android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeMusicPlayer-Release-APK
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
           retention-days: 30

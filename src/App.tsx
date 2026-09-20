@@ -73,16 +73,21 @@ export default function App() {
     }
   }, [volume, isMuted, playbackRate]);
 
-  // Play a song
+  // Play a song with robust state handling
   const handlePlaySong = useCallback((song: Song) => {
     setStreamError(null);
     setCurrentSong(song);
-    setIsPlaying(true);
     if (audioRef.current) {
       audioRef.current.src = song.audioUrl;
       audioRef.current.load();
-      audioRef.current.play().catch((err) => {
-        console.warn('Playback autoplay notice:', err);
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((err: unknown) => {
+        setIsPlaying(false);
+        const errMessage = err instanceof Error ? err.message : '';
+        if (!errMessage.includes('abort') && !errMessage.includes('interrupted')) {
+          setStreamError(`Playback for "${song.title}" could not start. Click Retry or Skip to Next.`);
+        }
       });
     }
   }, []);
@@ -102,8 +107,12 @@ export default function App() {
       }
       audioRef.current.play().then(() => {
         setIsPlaying(true);
-      }).catch((err) => {
-        console.warn('Play error:', err);
+      }).catch((err: unknown) => {
+        setIsPlaying(false);
+        const errMessage = err instanceof Error ? err.message : '';
+        if (!errMessage.includes('abort') && !errMessage.includes('interrupted')) {
+          setStreamError(`Playback error. Please retry playing "${currentSong.title}".`);
+        }
       });
     }
   }, [isPlaying, currentSong]);
@@ -325,28 +334,45 @@ export default function App() {
           ],
         });
 
-        navigator.mediaSession.setActionHandler('play', () => {
-          handleTogglePlay();
-        });
-        navigator.mediaSession.setActionHandler('pause', () => {
-          handleTogglePlay();
-        });
-        navigator.mediaSession.setActionHandler('previoustrack', () => {
-          handlePrevious();
-        });
-        navigator.mediaSession.setActionHandler('nexttrack', () => {
-          handleNext();
-        });
-        navigator.mediaSession.setActionHandler('seekto', (details) => {
+        const safeSetAction = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+          try {
+            navigator.mediaSession.setActionHandler(action, handler);
+          } catch {
+            // Ignore unsupported actions gracefully on older/custom Android WebViews
+          }
+        };
+
+        safeSetAction('play', () => handleTogglePlay());
+        safeSetAction('pause', () => handleTogglePlay());
+        safeSetAction('previoustrack', () => handlePrevious());
+        safeSetAction('nexttrack', () => handleNext());
+        safeSetAction('seekto', (details) => {
           if (details.seekTime !== undefined && details.seekTime !== null) {
             handleSeek(details.seekTime);
           }
         });
-      } catch (err) {
-        console.debug('MediaSession registration notice:', err);
+      } catch {
+        // Suppress debug notice in production
       }
     }
   }, [currentSong, handleTogglePlay, handlePrevious, handleNext]);
+
+  // Handle hardware back button on Android devices
+  useEffect(() => {
+    const handleBackButton = () => {
+      if (isExpandedPlayer) {
+        setIsExpandedPlayer(false);
+      } else if (isQueueOpen) {
+        setIsQueueOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handleBackButton);
+    document.addEventListener('backbutton', handleBackButton);
+    return () => {
+      window.removeEventListener('popstate', handleBackButton);
+      document.removeEventListener('backbutton', handleBackButton);
+    };
+  }, [isExpandedPlayer, isQueueOpen]);
 
   // Determine what songs to display
   const isSearchActive = searchTerm.trim().length > 0;
@@ -395,19 +421,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col selection:bg-emerald-500/30 selection:text-emerald-300">
-      {/* Hidden Native Audio Element */}
+      {/* Hidden Native Audio Element with State Synchronization */}
       <audio
         ref={audioRef}
         playsInline
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
-        onError={() => {
-          console.warn('Audio stream error for current song');
+        onError={(e) => {
           setIsPlaying(false);
-          setStreamError(
-            `"${currentSong?.title || 'Song'}" preview stream unavailable. Skip to next song or retry.`
-          );
+          const mediaError = e.currentTarget.error;
+          let message = `"${currentSong?.title || 'Song'}" preview stream unavailable. Skip to next song or retry.`;
+          if (mediaError?.code === MediaError.MEDIA_ERR_NETWORK) {
+            message = `Network issue while streaming "${currentSong?.title || 'Song'}". Please check connection.`;
+          }
+          setStreamError(message);
         }}
         preload="auto"
       />
