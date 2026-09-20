@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <!-- Include local user preferences and liked songs, exclude sensitive temporary caches -->
+    <!-- Include local user preferences and app settings -->
     <include domain="sharedpref" path="."/>
-    <exclude domain="cache" path="."/>
+    <!-- Exclude cache directories using valid Android storage domains -->
+    <exclude domain="root" path="cache"/>
+    <exclude domain="file" path="cache"/>
 </full-backup-content>
