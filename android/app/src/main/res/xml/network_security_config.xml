@@ -1,16 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Production security: Enforce HTTPS and disallow insecure cleartext HTTP traffic -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Allow secure HTTPS traffic and audio/artwork streaming from CDNs -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </base-config>
-
-    <!-- Trusted media and search CDNs with HTTPS -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">apple.com</domain>
-        <domain includeSubdomains="true">mzstatic.com</domain>
-        <domain includeSubdomains="true">itunes.apple.com</domain>
-    </domain-config>
 </network-security-config>

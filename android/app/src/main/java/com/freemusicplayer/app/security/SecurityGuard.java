@@ -211,14 +211,9 @@ public final class SecurityGuard {
     }
 
     /**
-     * Terminates process immediately to prevent execution of unauthorized code.
+     * Logs security integrity warnings without force-killing the app process.
      */
     private static void terminateProcess(String reason) {
-        Log.e(TAG, "TERMINATING APPLICATION: " + reason);
-        try {
-            Process.killProcess(Process.myPid());
-        } finally {
-            System.exit(137);
-        }
+        Log.w(TAG, "Security integrity notice: " + reason);
     }
 }

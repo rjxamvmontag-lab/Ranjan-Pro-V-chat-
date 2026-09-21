@@ -1,7 +1,7 @@
 {
   "name": "free-music-player",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "100% free online music player without VIP or subscription restrictions.",
   "type": "module",
   "scripts": {
