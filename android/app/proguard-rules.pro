@@ -36,11 +36,11 @@
 -dontwarn org.apache.cordova.**
 
 # 6. Preserve Anti-Tamper & Signature Verification
--keep class com.freemusicplayer.app.security.** { *; }
--keepclassmembers class com.freemusicplayer.app.security.** {
+-keep class com.novasoundstudios.freemusicplayer.security.** { *; }
+-keepclassmembers class com.novasoundstudios.freemusicplayer.security.** {
     public static <methods>;
 }
--keep class com.freemusicplayer.app.MainActivity { *; }
+-keep class com.novasoundstudios.freemusicplayer.MainActivity { *; }
 
 # 7. Remove Android Debug and Verbose Logs in Production (Retain Log.e and Log.w for error diagnostics)
 -assumenosideeffects class android.util.Log {

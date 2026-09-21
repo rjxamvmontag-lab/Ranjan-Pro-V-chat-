@@ -1,5 +1,5 @@
 {
-	"appId": "com.freemusicplayer.app",
+	"appId": "com.novasoundstudios.freemusicplayer",
 	"appName": "Free Music Player",
 	"webDir": "dist",
 	"server": {
